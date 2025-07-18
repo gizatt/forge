@@ -172,6 +172,10 @@ public class SimulateMatch {
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
     }
 
+    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
+        simulateSingleMatch(mc, iGame, outputGamelog, 5);
+    }
+
     public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, int aiTimeout) {
         final StopWatch sw = new StopWatch();
         sw.start();
@@ -343,6 +347,10 @@ public class SimulateMatch {
             tourney.reportMatchCompletion(pairing);
         }
         tourney.outputTournamentResults();
+    }
+
+    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog) {
+        simulateTournament(params, rules, outputGamelog, 5);
     }
 
     public static Match simulateOffthreadGame(List<Deck> decks, GameType format, int games) {
