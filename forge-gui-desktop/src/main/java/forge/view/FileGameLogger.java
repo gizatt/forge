@@ -2,8 +2,12 @@ package forge.view;
 
 import com.google.common.eventbus.Subscribe;
 import forge.ai.GameState;
+import forge.game.Game;
 import forge.game.GameLogEntry;
+import forge.game.GameOutcome;
 import forge.game.event.GameEventTurnPhase;
+import forge.game.player.Player;
+import forge.game.player.RegisteredPlayer;
 import forge.item.IPaperCard;
 import forge.model.FModel;
 
@@ -20,9 +24,24 @@ import java.util.Observer;
  */
 public class FileGameLogger implements Observer, Closeable {
     private final BufferedWriter writer;
+    private final Game game;
 
-    public FileGameLogger(File file) throws IOException {
+    public FileGameLogger(File file, Game game) throws IOException {
         this.writer = new BufferedWriter(new FileWriter(file, true));
+        this.game = game;
+        writePlayers();
+    }
+
+    private void writePlayers() throws IOException {
+        writer.write("=== Players ===");
+        writer.newLine();
+        for (Player p : game.getRegisteredPlayers()) {
+            RegisteredPlayer rp = p.getRegisteredPlayer();
+            writer.write(p.getName() + " - " + rp.getDeck().getName());
+            writer.newLine();
+        }
+        writer.newLine();
+        writer.flush();
     }
 
     @Override
@@ -52,6 +71,24 @@ public class FileGameLogger implements Observer, Closeable {
             writer.newLine();
             writer.flush();
         } catch (Exception e) {
+            // ignore logging failures
+        }
+    }
+
+    public void logWinner(Game g) {
+        try {
+            writer.write("=== Winner ===");
+            writer.newLine();
+            GameOutcome outcome = g.getOutcome();
+            if (outcome.isDraw()) {
+                writer.write("Game ended in a draw");
+            } else {
+                RegisteredPlayer rp = outcome.getWinningPlayer();
+                writer.write(rp.getPlayer().getName() + " with deck " + rp.getDeck().getName());
+            }
+            writer.newLine();
+            writer.flush();
+        } catch (IOException e) {
             // ignore logging failures
         }
     }

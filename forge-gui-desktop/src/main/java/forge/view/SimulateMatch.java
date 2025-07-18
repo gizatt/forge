@@ -19,6 +19,7 @@ import forge.game.GameRules;
 import forge.game.GameType;
 import forge.game.Match;
 import forge.game.player.RegisteredPlayer;
+import forge.view.FileGameLogger;
 import forge.gamemodes.tournament.system.AbstractTournament;
 import forge.gamemodes.tournament.system.TournamentBracket;
 import forge.gamemodes.tournament.system.TournamentPairing;
@@ -184,7 +185,7 @@ public class SimulateMatch {
         if (logDir != null) {
             File logFile = new File(logDir, "game_" + iGame + ".log");
             try {
-                logger = new FileGameLogger(logFile);
+                logger = new FileGameLogger(logFile, g1);
                 g1.subscribeToEvents(logger);
                 g1.getGameLog().addObserver(logger);
             } catch (IOException e) {
@@ -210,6 +211,7 @@ public class SimulateMatch {
             }
             if (logger != null) {
                 try {
+                    logger.logWinner(g1);
                     logger.close();
                 } catch (IOException e) {
                     System.err.println("Failed to close logger: " + e.getMessage());
