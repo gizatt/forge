@@ -28,6 +28,10 @@ import forge.gamemodes.tournament.system.TournamentSwiss;
 import forge.localinstance.properties.ForgeConstants;
 import forge.model.FModel;
 import forge.player.GamePlayerUtil;
+import com.google.common.collect.ImmutableSet;
+import forge.ai.AIOption;
+import forge.gui.GuiBase;
+import forge.util.MyRandom;
 import forge.util.Lang;
 import forge.util.TextUtil;
 import forge.util.WordUtil;
@@ -80,6 +84,10 @@ public class SimulateMatch {
         }
 
         boolean outputGamelog = !params.containsKey("q");
+        boolean useSim = params.containsKey("useSim");
+        String profileOverride = params.containsKey("profile")
+                ? params.get("profile").get(0)
+                : "";
 
         GameType type = GameType.Constructed;
         if (params.containsKey("f")) {
@@ -94,7 +102,7 @@ public class SimulateMatch {
         }
 
         if (params.containsKey("t")) {
-            simulateTournament(params, rules, outputGamelog);
+            simulateTournament(params, rules, outputGamelog, useSim, profileOverride);
             System.out.flush();
             return;
         }
@@ -124,7 +132,11 @@ public class SimulateMatch {
                 } else {
                     rp = new RegisteredPlayer(d);
                 }
-                rp.setPlayer(GamePlayerUtil.createAiPlayer(name, i - 1));
+                int sleeveCount = GuiBase.getInterface().getSleevesCount();
+                int sleeveIndex = sleeveCount == 0 ? 0 : MyRandom.getRandom().nextInt(sleeveCount);
+                rp.setPlayer(GamePlayerUtil.createAiPlayer(name, i - 1, sleeveIndex,
+                        useSim ? ImmutableSet.of(AIOption.USE_SIMULATION) : null,
+                        profileOverride));
                 pp.add(rp);
                 i++;
             }
@@ -153,7 +165,7 @@ public class SimulateMatch {
     }
 
     private static void argumentHelp() {
-        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -q");
+        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -useSim -profile [PROFILE] -q");
         System.out.println("\tsim - stands for simulation mode");
         System.out.println("\tdeck1 (or deck2,...,X) - constructed deck name or filename (has to be quoted when contains multiple words)");
         System.out.println("\tdeck is treated as file if it ends with a dot followed by three numbers or letters");
@@ -163,6 +175,8 @@ public class SimulateMatch {
         System.out.println("\tT - Type of tournament to run with all provided decks (Bracket, RoundRobin, Swiss)");
         System.out.println("\tP - Amount of players per match (used only with Tournaments, defaults to 2)");
         System.out.println("\tF - format of games, defaults to constructed");
+        System.out.println("\tuseSim - Use simulation mode for AI players");
+        System.out.println("\tprofile - Override the AI profile used by players");
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
     }
 
@@ -209,7 +223,9 @@ public class SimulateMatch {
         }
     }
 
-    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog) {
+    private static void simulateTournament(Map<String, List<String>> params, GameRules rules,
+                                           boolean outputGamelog, boolean useSim,
+                                           String profileOverride) {
         String tournament = params.get("t").get(0);
         AbstractTournament tourney = null;
         int matchPlayers = params.containsKey("p") ? Integer.parseInt(params.get("p").get(0)) : 2;
@@ -226,7 +242,13 @@ public class SimulateMatch {
                 }
 
                 deckGroup.addAiDeck(d);
-                players.add(new TournamentPlayer(GamePlayerUtil.createAiPlayer(d.getName(), 0), numPlayers));
+                int sleeveCount = GuiBase.getInterface().getSleevesCount();
+                int sleeveIndex = sleeveCount == 0 ? 0 : MyRandom.getRandom().nextInt(sleeveCount);
+                players.add(new TournamentPlayer(
+                        GamePlayerUtil.createAiPlayer(d.getName(), 0, sleeveIndex,
+                                useSim ? ImmutableSet.of(AIOption.USE_SIMULATION) : null,
+                                profileOverride),
+                        numPlayers));
                 numPlayers++;
             }
         }
@@ -245,7 +267,13 @@ public class SimulateMatch {
                         return;
                     }
                     deckGroup.addAiDeck(d);
-                    players.add(new TournamentPlayer(GamePlayerUtil.createAiPlayer(d.getName(), 0), numPlayers));
+                    int sleeveCount = GuiBase.getInterface().getSleevesCount();
+                    int sleeveIndex = sleeveCount == 0 ? 0 : MyRandom.getRandom().nextInt(sleeveCount);
+                    players.add(new TournamentPlayer(
+                            GamePlayerUtil.createAiPlayer(d.getName(), 0, sleeveIndex,
+                                    useSim ? ImmutableSet.of(AIOption.USE_SIMULATION) : null,
+                                    profileOverride),
+                            numPlayers));
                     numPlayers++;
                 }
             }
