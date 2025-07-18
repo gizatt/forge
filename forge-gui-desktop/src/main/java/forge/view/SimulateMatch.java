@@ -81,6 +81,11 @@ public class SimulateMatch {
 
         boolean outputGamelog = !params.containsKey("q");
 
+        int aiTimeout = 5;
+        if (params.containsKey("tTimeout")) {
+            aiTimeout = Integer.parseInt(params.get("tTimeout").get(0));
+        }
+
         GameType type = GameType.Constructed;
         if (params.containsKey("f")) {
             type = GameType.valueOf(WordUtil.capitalize(params.get("f").get(0)));
@@ -94,7 +99,7 @@ public class SimulateMatch {
         }
 
         if (params.containsKey("t")) {
-            simulateTournament(params, rules, outputGamelog);
+            simulateTournament(params, rules, outputGamelog, aiTimeout);
             System.out.flush();
             return;
         }
@@ -140,12 +145,12 @@ public class SimulateMatch {
             int iGame = 0;
             while (!mc.isMatchOver()) {
                 // play games until the match ends
-                simulateSingleMatch(mc, iGame, outputGamelog);
+                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout);
                 iGame++;
             }
         } else {
             for (int iGame = 0; iGame < nGames; iGame++) {
-                simulateSingleMatch(mc, iGame, outputGamelog);
+                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout);
             }
         }
 
@@ -153,7 +158,7 @@ public class SimulateMatch {
     }
 
     private static void argumentHelp() {
-        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -q");
+        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -tTimeout [S] -q");
         System.out.println("\tsim - stands for simulation mode");
         System.out.println("\tdeck1 (or deck2,...,X) - constructed deck name or filename (has to be quoted when contains multiple words)");
         System.out.println("\tdeck is treated as file if it ends with a dot followed by three numbers or letters");
@@ -163,14 +168,17 @@ public class SimulateMatch {
         System.out.println("\tT - Type of tournament to run with all provided decks (Bracket, RoundRobin, Swiss)");
         System.out.println("\tP - Amount of players per match (used only with Tournaments, defaults to 2)");
         System.out.println("\tF - format of games, defaults to constructed");
+        System.out.println("\ttTimeout - AI think time in seconds (<=0 disables timeout)");
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
     }
 
-    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
+    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, int aiTimeout) {
         final StopWatch sw = new StopWatch();
         sw.start();
 
         final Game g1 = mc.createGame();
+        g1.AI_TIMEOUT = aiTimeout;
+        g1.AI_CAN_USE_TIMEOUT = aiTimeout > 0;
         // will run match in the same thread
         try {
             TimeLimitedCodeBlock.runWithTimeout(() -> {
@@ -209,7 +217,7 @@ public class SimulateMatch {
         }
     }
 
-    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog) {
+    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog, int aiTimeout) {
         String tournament = params.get("t").get(0);
         AbstractTournament tourney = null;
         int matchPlayers = params.containsKey("p") ? Integer.parseInt(params.get("p").get(0)) : 2;
@@ -306,7 +314,7 @@ public class SimulateMatch {
                 while (!mc.isMatchOver()) {
                     // play games until the match ends
                     try {
-                        simulateSingleMatch(mc, iGame, outputGamelog);
+                        simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout);
                         iGame++;
                     } catch (Exception e) {
                         exceptions++;
