@@ -58,7 +58,8 @@ public class SimulateMatch {
                 }
 
                 options = new ArrayList<>();
-                params.put(a.substring(1), options);
+                final String key = a.startsWith("--") ? a.substring(2) : a.substring(1);
+                params.put(key, options);
             } else if (options != null) {
                 options.add(a);
             } else {
@@ -80,6 +81,13 @@ public class SimulateMatch {
         }
 
         boolean outputGamelog = !params.containsKey("q");
+        File logDir = null;
+        if (params.containsKey("logDir")) {
+            logDir = new File(params.get("logDir").get(0));
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+        }
 
         GameType type = GameType.Constructed;
         if (params.containsKey("f")) {
@@ -94,7 +102,7 @@ public class SimulateMatch {
         }
 
         if (params.containsKey("t")) {
-            simulateTournament(params, rules, outputGamelog);
+            simulateTournament(params, rules, outputGamelog, logDir);
             System.out.flush();
             return;
         }
@@ -140,12 +148,12 @@ public class SimulateMatch {
             int iGame = 0;
             while (!mc.isMatchOver()) {
                 // play games until the match ends
-                simulateSingleMatch(mc, iGame, outputGamelog);
+                simulateSingleMatch(mc, iGame, outputGamelog, logDir);
                 iGame++;
             }
         } else {
             for (int iGame = 0; iGame < nGames; iGame++) {
-                simulateSingleMatch(mc, iGame, outputGamelog);
+                simulateSingleMatch(mc, iGame, outputGamelog, logDir);
             }
         }
 
@@ -163,14 +171,26 @@ public class SimulateMatch {
         System.out.println("\tT - Type of tournament to run with all provided decks (Bracket, RoundRobin, Swiss)");
         System.out.println("\tP - Amount of players per match (used only with Tournaments, defaults to 2)");
         System.out.println("\tF - format of games, defaults to constructed");
+        System.out.println("\t--logDir - directory to output structured game logs");
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
     }
 
-    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
+    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, File logDir) {
         final StopWatch sw = new StopWatch();
         sw.start();
 
         final Game g1 = mc.createGame();
+        FileGameLogger logger = null;
+        if (logDir != null) {
+            File logFile = new File(logDir, "game_" + iGame + ".log");
+            try {
+                logger = new FileGameLogger(logFile);
+                g1.subscribeToEvents(logger);
+                g1.getGameLog().addObserver(logger);
+            } catch (IOException e) {
+                System.err.println("Failed to initialize logger: " + e.getMessage());
+            }
+        }
         // will run match in the same thread
         try {
             TimeLimitedCodeBlock.runWithTimeout(() -> {
@@ -187,6 +207,13 @@ public class SimulateMatch {
             }
             if (!g1.isGameOver()) {
                 g1.setGameOver(GameEndReason.Draw);
+            }
+            if (logger != null) {
+                try {
+                    logger.close();
+                } catch (IOException e) {
+                    System.err.println("Failed to close logger: " + e.getMessage());
+                }
             }
         }
 
@@ -209,7 +236,7 @@ public class SimulateMatch {
         }
     }
 
-    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog) {
+    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog, File logDir) {
         String tournament = params.get("t").get(0);
         AbstractTournament tourney = null;
         int matchPlayers = params.containsKey("p") ? Integer.parseInt(params.get("p").get(0)) : 2;
@@ -306,7 +333,7 @@ public class SimulateMatch {
                 while (!mc.isMatchOver()) {
                     // play games until the match ends
                     try {
-                        simulateSingleMatch(mc, iGame, outputGamelog);
+                        simulateSingleMatch(mc, iGame, outputGamelog, logDir);
                         iGame++;
                     } catch (Exception e) {
                         exceptions++;
