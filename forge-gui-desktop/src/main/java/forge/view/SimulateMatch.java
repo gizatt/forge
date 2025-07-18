@@ -28,6 +28,10 @@ import forge.gamemodes.tournament.system.TournamentSwiss;
 import forge.localinstance.properties.ForgeConstants;
 import forge.model.FModel;
 import forge.player.GamePlayerUtil;
+import com.google.common.collect.ImmutableSet;
+import forge.ai.AIOption;
+import forge.gui.GuiBase;
+import forge.util.MyRandom;
 import forge.util.Lang;
 import forge.util.TextUtil;
 import forge.util.WordUtil;
@@ -80,6 +84,10 @@ public class SimulateMatch {
         }
 
         boolean outputGamelog = !params.containsKey("q");
+        boolean useSim = params.containsKey("useSim");
+        String profileOverride = params.containsKey("profile")
+                ? params.get("profile").get(0)
+                : "";
 
         int aiTimeout = 5;
         if (params.containsKey("tTimeout")) {
@@ -99,7 +107,7 @@ public class SimulateMatch {
         }
 
         if (params.containsKey("t")) {
-            simulateTournament(params, rules, outputGamelog, aiTimeout);
+            simulateTournament(params, rules, outputGamelog);
             System.out.flush();
             return;
         }
@@ -129,7 +137,11 @@ public class SimulateMatch {
                 } else {
                     rp = new RegisteredPlayer(d);
                 }
-                rp.setPlayer(GamePlayerUtil.createAiPlayer(name, i - 1));
+                int sleeveCount = GuiBase.getInterface().getSleevesCount();
+                int sleeveIndex = sleeveCount == 0 ? 0 : MyRandom.getRandom().nextInt(sleeveCount);
+                rp.setPlayer(GamePlayerUtil.createAiPlayer(name, i - 1, sleeveIndex,
+                        useSim ? ImmutableSet.of(AIOption.USE_SIMULATION) : null,
+                        profileOverride));
                 pp.add(rp);
                 i++;
             }
@@ -158,7 +170,7 @@ public class SimulateMatch {
     }
 
     private static void argumentHelp() {
-        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -tTimeout [S] -q");
+        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -tTimeout [S] -useSim -profile [PROFILE] -q");
         System.out.println("\tsim - stands for simulation mode");
         System.out.println("\tdeck1 (or deck2,...,X) - constructed deck name or filename (has to be quoted when contains multiple words)");
         System.out.println("\tdeck is treated as file if it ends with a dot followed by three numbers or letters");
@@ -169,6 +181,8 @@ public class SimulateMatch {
         System.out.println("\tP - Amount of players per match (used only with Tournaments, defaults to 2)");
         System.out.println("\tF - format of games, defaults to constructed");
         System.out.println("\ttTimeout - AI think time in seconds (<=0 disables timeout)");
+        System.out.println("\tuseSim - Use simulation mode for AI players");
+        System.out.println("\tprofile - Override the AI profile used by players");
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
     }
 
@@ -221,7 +235,7 @@ public class SimulateMatch {
         }
     }
 
-    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog, int aiTimeout) {
+    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog) {
         String tournament = params.get("t").get(0);
         AbstractTournament tourney = null;
         int matchPlayers = params.containsKey("p") ? Integer.parseInt(params.get("p").get(0)) : 2;
@@ -318,7 +332,7 @@ public class SimulateMatch {
                 while (!mc.isMatchOver()) {
                     // play games until the match ends
                     try {
-                        simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout);
+                        simulateSingleMatch(mc, iGame, outputGamelog);
                         iGame++;
                     } catch (Exception e) {
                         exceptions++;
@@ -348,11 +362,6 @@ public class SimulateMatch {
         }
         tourney.outputTournamentResults();
     }
-
-    private static void simulateTournament(Map<String, List<String>> params, GameRules rules, boolean outputGamelog) {
-        simulateTournament(params, rules, outputGamelog, 5);
-    }
-
     public static Match simulateOffthreadGame(List<Deck> decks, GameType format, int games) {
         return null;
     }
