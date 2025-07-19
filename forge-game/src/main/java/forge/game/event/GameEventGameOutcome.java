@@ -3,7 +3,6 @@ package forge.game.event;
 import java.util.Collection;
 
 import forge.game.GameOutcome;
-import forge.util.Lang;
 import forge.util.TextUtil;
 
 public class GameEventGameOutcome extends GameEvent {
@@ -17,9 +16,7 @@ public class GameEventGameOutcome extends GameEvent {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(TextUtil.concatNoSpace("result=", result.toString(), "\n"));
-        return sb.toString();
+        return TextUtil.concatNoSpace("result=", result.toString(), "\n");
     }
 
     @Override

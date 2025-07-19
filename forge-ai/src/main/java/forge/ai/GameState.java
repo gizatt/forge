@@ -273,6 +273,10 @@ public abstract class GameState {
                         .append("|Art:").append(c.getPaperCard().getArtIndex());
             }
         }
+        newText.append("|Type:").append(c.getType().toString());
+        newText.append("|Power:").append(c.getCurrentPower());
+        newText.append("|Toughness:").append(c.getCurrentToughness());
+        newText.append("|ManaCost:").append(c.getManaCost().toString());
         if (c.isCommander()) {
             newText.append("|IsCommander");
         }

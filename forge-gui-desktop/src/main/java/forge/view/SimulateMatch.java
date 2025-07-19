@@ -134,7 +134,7 @@ public class SimulateMatch {
 
         if (params.containsKey("d")) {
             for (String deck : params.get("d")) {
-                Deck d = deckFromCommandLineParameter(deck, type);
+                Deck d = deckFromCommandLineParameter(deck, type, params);
                 if (d == null) {
                     System.out.println(TextUtil.concatNoSpace("Could not load deck - ", deck, ", match cannot start"));
                     return;
@@ -283,7 +283,7 @@ public class SimulateMatch {
         int numPlayers = 0;
         if (params.containsKey("d")) {
             for (String deck : params.get("d")) {
-                Deck d = deckFromCommandLineParameter(deck, rules.getGameType());
+                Deck d = deckFromCommandLineParameter(deck, rules.getGameType(), params);
                 if (d == null) {
                     System.out.println(TextUtil.concatNoSpace("Could not load deck - ", deck, ", match cannot start"));
                     return;
@@ -404,11 +404,16 @@ public class SimulateMatch {
         return null;
     }
 
-    private static Deck deckFromCommandLineParameter(String deckname, GameType type) {
+    private static Deck deckFromCommandLineParameter(String deckname, GameType type, Map<String, List<String>> params) {
         int dotpos = deckname.lastIndexOf('.');
         if (dotpos > 0 && dotpos == deckname.length() - 4) {
-            String baseDir = type.equals(GameType.Commander) ?
-                    ForgeConstants.DECK_COMMANDER_DIR : ForgeConstants.DECK_CONSTRUCTED_DIR;
+            String baseDir;
+            if (params.containsKey("D")){
+                baseDir = params.get("D").get(0);
+            } else {
+                baseDir = type.equals(GameType.Commander) ?
+                        ForgeConstants.DECK_COMMANDER_DIR : ForgeConstants.DECK_CONSTRUCTED_DIR;
+            }
 
             File f = new File(baseDir + deckname);
             if (!f.exists()) {

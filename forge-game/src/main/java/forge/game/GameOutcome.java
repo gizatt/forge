@@ -34,7 +34,6 @@ import forge.game.player.PlayerStatistics;
 import forge.game.player.PlayerView;
 import forge.game.player.RegisteredPlayer;
 import forge.item.PaperCard;
-import forge.util.TextUtil;
 
 /**
  * <p>

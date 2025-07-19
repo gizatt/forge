@@ -1,6 +1,31 @@
 ## Unreleased
 ### No issue
 
+**Missing import**
+
+
+[bf158790c388c2b](https://github.com/gizatt/forge/commit/bf158790c388c2b) Greg Izatt *2025-07-19 02:24:38*
+
+**Name log file with timestamp**
+
+
+[58fba945be304c1](https://github.com/gizatt/forge/commit/58fba945be304c1) Greg Izatt *2025-07-19 02:22:38*
+
+**Add much more thorough logging.**
+
+
+[1b0f082164246fa](https://github.com/gizatt/forge/commit/1b0f082164246fa) Greg Izatt *2025-07-19 02:12:58*
+
+**Add the basic logging**
+
+
+[ff8fcffa84d9700](https://github.com/gizatt/forge/commit/ff8fcffa84d9700) Greg Izatt *2025-07-19 01:39:00*
+
+**Tweaks**
+
+
+[38705d204e84eb4](https://github.com/gizatt/forge/commit/38705d204e84eb4) Greg Izatt *2025-07-19 01:03:48*
+
 **Allow AI profile override in simulations**
 
 
