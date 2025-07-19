@@ -1,7 +1,5 @@
 package forge.game.event;
 
-import forge.util.Lang;
-import forge.util.TextUtil;
 
 public class GameEventGameFinished extends GameEvent {
     @Override
