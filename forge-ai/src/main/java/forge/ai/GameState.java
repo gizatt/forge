@@ -277,6 +277,7 @@ public abstract class GameState {
         newText.append("|Power:").append(c.getCurrentPower());
         newText.append("|Toughness:").append(c.getCurrentToughness());
         newText.append("|ManaCost:").append(c.getManaCost().toString());
+        newText.append("|MaxManaProduced:").append(c.getMaxManaProduced());
         if (c.isCommander()) {
             newText.append("|IsCommander");
         }
