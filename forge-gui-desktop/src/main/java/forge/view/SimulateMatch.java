@@ -7,6 +7,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.time.StopWatch;
 
+import java.io.IOException;
 import forge.LobbyPlayer;
 import forge.deck.Deck;
 import forge.deck.DeckGroup;
@@ -99,6 +100,14 @@ public class SimulateMatch {
             gameTimeout = Integer.parseInt(params.get("gameTimeout").get(0));
         }
 
+        File logDir = null;
+        if (params.containsKey("logDir")) {
+            logDir = new File(params.get("logDir").get(0));
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+        }
+
         GameType type = GameType.Constructed;
         if (params.containsKey("f")) {
             type = GameType.valueOf(WordUtil.capitalize(params.get("f").get(0)));
@@ -162,12 +171,12 @@ public class SimulateMatch {
             int iGame = 0;
             while (!mc.isMatchOver()) {
                 // play games until the match ends
-                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout, gameTimeout);
+                simulateSingleMatch(mc, iGame, outputGamelog, logDir, aiTimeout, gameTimeout);
                 iGame++;
             }
         } else {
             for (int iGame = 0; iGame < nGames; iGame++) {
-                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout, gameTimeout);
+                simulateSingleMatch(mc, iGame, outputGamelog, logDir, aiTimeout, gameTimeout);
             }
         }
 
@@ -175,7 +184,7 @@ public class SimulateMatch {
     }
 
     private static void argumentHelp() {
-        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -aiTimeout [S] -gameTimeout [S] -useSim -profile [PROFILE] -q");
+        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -aiTimeout [S] -gameTimeout [S] -useSim -profile [PROFILE] -q -logdir C:/logs");
         System.out.println("\tsim - stands for simulation mode");
         System.out.println("\tdeck1 (or deck2,...,X) - constructed deck name or filename (has to be quoted when contains multiple words)");
         System.out.println("\tdeck is treated as file if it ends with a dot followed by three numbers or letters");
@@ -190,19 +199,33 @@ public class SimulateMatch {
         System.out.println("\tuseSim - Use simulation mode for AI players");
         System.out.println("\tprofile - Override the AI profile used by players");
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
+        System.out.println("\t--logDir - directory to output structured game logs, one per game");
     }
 
     public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
-        simulateSingleMatch(mc, iGame, outputGamelog, 5, 120);
+        simulateSingleMatch(mc, iGame, outputGamelog, null, 5, 120);
     }
 
-    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, int aiTimeout,  int gameTimeout) {
+    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, File logDir, int aiTimeout,  int gameTimeout) {
         final StopWatch sw = new StopWatch();
         sw.start();
 
         final Game g1 = mc.createGame();
         g1.AI_TIMEOUT = aiTimeout;
         g1.AI_CAN_USE_TIMEOUT = aiTimeout > 0;
+
+        FileGameLogger logger = null;
+        if (logDir != null) {
+            File logFile = new File(logDir, "game_" + iGame + ".log");
+            try {
+                logger = new FileGameLogger(logFile, g1);
+                g1.subscribeToEvents(logger);
+                g1.getGameLog().addObserver(logger);
+            } catch (IOException e) {
+                System.err.println("Failed to initialize logger: " + e.getMessage());
+            }
+        }
+
         // will run match in the same thread
         try {
             TimeLimitedCodeBlock.runWithTimeout(() -> {
@@ -219,6 +242,14 @@ public class SimulateMatch {
             }
             if (!g1.isGameOver()) {
                 g1.setGameOver(GameEndReason.Draw);
+            }
+            if (logger != null) {
+                try {
+                    logger.logWinner(g1);
+                    logger.close();
+                } catch (IOException e) {
+                    System.err.println("Failed to close logger: " + e.getMessage());
+                }
             }
         }
 
