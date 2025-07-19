@@ -1,6 +1,7 @@
 package forge.view;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -216,7 +217,8 @@ public class SimulateMatch {
 
         FileGameLogger logger = null;
         if (logDir != null) {
-            File logFile = new File(logDir, "game_" + iGame + ".log");
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmssSSS").format(new Date());
+            File logFile = new File(logDir, timestamp + "_game_" + iGame + ".log");
             try {
                 logger = new FileGameLogger(logFile, g1);
                 g1.subscribeToEvents(logger);
