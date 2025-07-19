@@ -245,7 +245,6 @@ public class SimulateMatch {
             }
             if (logger != null) {
                 try {
-                    logger.logWinner(g1);
                     logger.close();
                 } catch (IOException e) {
                     System.err.println("Failed to close logger: " + e.getMessage());

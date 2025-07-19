@@ -1,10 +1,14 @@
 package forge.view;
 
+import com.esotericsoftware.minlog.Log;
 import com.google.common.eventbus.Subscribe;
 import forge.ai.GameState;
 import forge.game.Game;
 import forge.game.GameLogEntry;
 import forge.game.GameOutcome;
+import forge.game.event.GameEvent;
+import forge.game.event.GameEventGameOutcome;
+import forge.game.event.GameEventSpellAbilityCast;
 import forge.game.event.GameEventTurnPhase;
 import forge.game.player.Player;
 import forge.game.player.RegisteredPlayer;
@@ -52,13 +56,17 @@ public class FileGameLogger implements Observer, Closeable {
                 writer.newLine();
                 writer.flush();
             } catch (IOException e) {
-                // ignore logging failures
+                Log.debug("Exception in logger: " + e);
             }
         }
     }
 
     @Subscribe
     public void onTurnPhase(GameEventTurnPhase event) {
+        // Do the printing of the event itself.
+        onGameEvent(event);
+
+        // And also print out the boars state.
         GameState state = new GameState() {
             @Override
             public IPaperCard getPaperCard(String cardName, String setCode, int artID) {
@@ -67,31 +75,29 @@ public class FileGameLogger implements Observer, Closeable {
         };
         try {
             state.initFromGame(event.playerTurn.getGame());
+            writer.write("=== Board state snapshot ===");
+            writer.newLine();
             writer.write(state.toString());
             writer.newLine();
             writer.flush();
         } catch (Exception e) {
-            // ignore logging failures
+            Log.debug("Exception in logger: " + e);
         }
     }
 
-    public void logWinner(Game g) {
+    @Subscribe
+    public void onGameEvent(GameEvent event) {
         try {
-            writer.write("=== Winner ===");
+            writer.write("== GameEvent: " + event.getClass().getName() + " ===");
             writer.newLine();
-            GameOutcome outcome = g.getOutcome();
-            if (outcome.isDraw()) {
-                writer.write("Game ended in a draw");
-            } else {
-                RegisteredPlayer rp = outcome.getWinningPlayer();
-                writer.write(rp.getPlayer().getName() + " with deck " + rp.getDeck().getName());
-            }
+            writer.write(event.toString());
             writer.newLine();
             writer.flush();
-        } catch (IOException e) {
-            // ignore logging failures
+        } catch (Exception e) {
+            Log.debug("Exception in logger: " + e);
         }
     }
+
 
     @Override
     public void close() throws IOException {

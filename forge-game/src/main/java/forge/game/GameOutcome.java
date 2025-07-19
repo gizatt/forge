@@ -34,6 +34,7 @@ import forge.game.player.PlayerStatistics;
 import forge.game.player.PlayerView;
 import forge.game.player.RegisteredPlayer;
 import forge.item.PaperCard;
+import forge.util.TextUtil;
 
 /**
  * <p>
@@ -247,5 +248,15 @@ public final class GameOutcome implements Iterable<Entry<RegisteredPlayer, Playe
             }
         }
         return null;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (String outcome_string : this.getOutcomeStrings()){
+            sb.append(outcome_string);
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 }
