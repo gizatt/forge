@@ -90,8 +90,13 @@ public class SimulateMatch {
                 : "";
 
         int aiTimeout = 5;
-        if (params.containsKey("tTimeout")) {
-            aiTimeout = Integer.parseInt(params.get("tTimeout").get(0));
+        if (params.containsKey("aiTimeout")) {
+            aiTimeout = Integer.parseInt(params.get("aiTimeout").get(0));
+        }
+
+        int gameTimeout = 120;
+        if (params.containsKey("gameTimeout")) {
+            gameTimeout = Integer.parseInt(params.get("gameTimeout").get(0));
         }
 
         GameType type = GameType.Constructed;
@@ -157,12 +162,12 @@ public class SimulateMatch {
             int iGame = 0;
             while (!mc.isMatchOver()) {
                 // play games until the match ends
-                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout);
+                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout, gameTimeout);
                 iGame++;
             }
         } else {
             for (int iGame = 0; iGame < nGames; iGame++) {
-                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout);
+                simulateSingleMatch(mc, iGame, outputGamelog, aiTimeout, gameTimeout);
             }
         }
 
@@ -170,7 +175,7 @@ public class SimulateMatch {
     }
 
     private static void argumentHelp() {
-        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -tTimeout [S] -useSim -profile [PROFILE] -q");
+        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -aiTimeout [S] -gameTimeout [S] -useSim -profile [PROFILE] -q");
         System.out.println("\tsim - stands for simulation mode");
         System.out.println("\tdeck1 (or deck2,...,X) - constructed deck name or filename (has to be quoted when contains multiple words)");
         System.out.println("\tdeck is treated as file if it ends with a dot followed by three numbers or letters");
@@ -180,17 +185,18 @@ public class SimulateMatch {
         System.out.println("\tT - Type of tournament to run with all provided decks (Bracket, RoundRobin, Swiss)");
         System.out.println("\tP - Amount of players per match (used only with Tournaments, defaults to 2)");
         System.out.println("\tF - format of games, defaults to constructed");
-        System.out.println("\ttTimeout - AI think time in seconds (<=0 disables timeout)");
+        System.out.println("\taiTimeout - AI think time in seconds (<=0 disables timeout)");
+        System.out.println("\tgameTimeout - Game timeout in seconds, default 120.");
         System.out.println("\tuseSim - Use simulation mode for AI players");
         System.out.println("\tprofile - Override the AI profile used by players");
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
     }
 
     public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
-        simulateSingleMatch(mc, iGame, outputGamelog, 5);
+        simulateSingleMatch(mc, iGame, outputGamelog, 5, 120);
     }
 
-    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, int aiTimeout) {
+    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, int aiTimeout,  int gameTimeout) {
         final StopWatch sw = new StopWatch();
         sw.start();
 
@@ -202,7 +208,7 @@ public class SimulateMatch {
             TimeLimitedCodeBlock.runWithTimeout(() -> {
                 mc.startGame(g1);
                 sw.stop();
-            }, 120, TimeUnit.SECONDS);
+            }, gameTimeout, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             System.out.println("Stopping slow match as draw");
         } catch (Exception | StackOverflowError e) {

@@ -838,6 +838,8 @@ public class Game {
     }
 
     public void onPlayerLost(Player p) {
+        getGameLog().add(GameLogEntryType.INFORMATION, String.format("Player %s has lost.", (p.toString())));
+
         //set for Avatar
         p.setHasLost(true);
         // Rule 800.4 Losing a Multiplayer game
