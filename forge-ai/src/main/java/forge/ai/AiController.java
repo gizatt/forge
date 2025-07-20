@@ -1791,8 +1791,13 @@ public class AiController {
 
         // instead of computing all available concurrently just add a simple timeout depending on the user prefs
         try {
-            return future.get(game.getAITimeout(), TimeUnit.SECONDS);
+            int timeout = game.getAITimeout();
+            if (timeout <= 0) {
+                timeout = 10;
+            }
+            return future.get(timeout, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            Log.debug("Timeout in chooseSpellAbilityToPlayFromList");
             future.cancel(true);
             return null;
         }

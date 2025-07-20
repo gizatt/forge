@@ -1,12 +1,14 @@
 package forge.view;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.time.StopWatch;
 
+import java.io.IOException;
 import forge.LobbyPlayer;
 import forge.deck.Deck;
 import forge.deck.DeckGroup;
@@ -28,6 +30,10 @@ import forge.gamemodes.tournament.system.TournamentSwiss;
 import forge.localinstance.properties.ForgeConstants;
 import forge.model.FModel;
 import forge.player.GamePlayerUtil;
+import com.google.common.collect.ImmutableSet;
+import forge.ai.AIOption;
+import forge.gui.GuiBase;
+import forge.util.MyRandom;
 import forge.util.Lang;
 import forge.util.TextUtil;
 import forge.util.WordUtil;
@@ -80,6 +86,28 @@ public class SimulateMatch {
         }
 
         boolean outputGamelog = !params.containsKey("q");
+        boolean useSim = params.containsKey("useSim");
+        String profileOverride = params.containsKey("profile")
+                ? params.get("profile").get(0)
+                : "";
+
+        int aiTimeout = 5;
+        if (params.containsKey("aiTimeout")) {
+            aiTimeout = Integer.parseInt(params.get("aiTimeout").get(0));
+        }
+
+        int gameTimeout = 120;
+        if (params.containsKey("gameTimeout")) {
+            gameTimeout = Integer.parseInt(params.get("gameTimeout").get(0));
+        }
+
+        File logDir = null;
+        if (params.containsKey("logDir")) {
+            logDir = new File(params.get("logDir").get(0));
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+        }
 
         GameType type = GameType.Constructed;
         if (params.containsKey("f")) {
@@ -106,7 +134,7 @@ public class SimulateMatch {
 
         if (params.containsKey("d")) {
             for (String deck : params.get("d")) {
-                Deck d = deckFromCommandLineParameter(deck, type);
+                Deck d = deckFromCommandLineParameter(deck, type, params);
                 if (d == null) {
                     System.out.println(TextUtil.concatNoSpace("Could not load deck - ", deck, ", match cannot start"));
                     return;
@@ -124,7 +152,11 @@ public class SimulateMatch {
                 } else {
                     rp = new RegisteredPlayer(d);
                 }
-                rp.setPlayer(GamePlayerUtil.createAiPlayer(name, i - 1));
+                int sleeveCount = GuiBase.getInterface().getSleevesCount();
+                int sleeveIndex = sleeveCount == 0 ? 0 : MyRandom.getRandom().nextInt(sleeveCount);
+                rp.setPlayer(GamePlayerUtil.createAiPlayer(name, i - 1, sleeveIndex,
+                        useSim ? ImmutableSet.of(AIOption.USE_SIMULATION) : null,
+                        profileOverride));
                 pp.add(rp);
                 i++;
             }
@@ -140,12 +172,12 @@ public class SimulateMatch {
             int iGame = 0;
             while (!mc.isMatchOver()) {
                 // play games until the match ends
-                simulateSingleMatch(mc, iGame, outputGamelog);
+                simulateSingleMatch(mc, iGame, outputGamelog, logDir, aiTimeout, gameTimeout);
                 iGame++;
             }
         } else {
             for (int iGame = 0; iGame < nGames; iGame++) {
-                simulateSingleMatch(mc, iGame, outputGamelog);
+                simulateSingleMatch(mc, iGame, outputGamelog, logDir, aiTimeout, gameTimeout);
             }
         }
 
@@ -153,7 +185,7 @@ public class SimulateMatch {
     }
 
     private static void argumentHelp() {
-        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -q");
+        System.out.println("Syntax: forge.exe sim -d <deck1[.dck]> ... <deckX[.dck]> -D [D] -n [N] -m [M] -t [T] -p [P] -f [F] -aiTimeout [S] -gameTimeout [S] -useSim -profile [PROFILE] -q -logdir C:/logs");
         System.out.println("\tsim - stands for simulation mode");
         System.out.println("\tdeck1 (or deck2,...,X) - constructed deck name or filename (has to be quoted when contains multiple words)");
         System.out.println("\tdeck is treated as file if it ends with a dot followed by three numbers or letters");
@@ -163,20 +195,45 @@ public class SimulateMatch {
         System.out.println("\tT - Type of tournament to run with all provided decks (Bracket, RoundRobin, Swiss)");
         System.out.println("\tP - Amount of players per match (used only with Tournaments, defaults to 2)");
         System.out.println("\tF - format of games, defaults to constructed");
+        System.out.println("\taiTimeout - AI think time in seconds (<=0 disables timeout)");
+        System.out.println("\tgameTimeout - Game timeout in seconds, default 120.");
+        System.out.println("\tuseSim - Use simulation mode for AI players");
+        System.out.println("\tprofile - Override the AI profile used by players");
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
+        System.out.println("\t--logDir - directory to output structured game logs, one per game");
     }
 
     public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
+        simulateSingleMatch(mc, iGame, outputGamelog, null, 5, 120);
+    }
+
+    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog, File logDir, int aiTimeout,  int gameTimeout) {
         final StopWatch sw = new StopWatch();
         sw.start();
 
         final Game g1 = mc.createGame();
+        g1.AI_TIMEOUT = aiTimeout;
+        g1.AI_CAN_USE_TIMEOUT = aiTimeout > 0;
+
+        FileGameLogger logger = null;
+        if (logDir != null) {
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmssSSS").format(new Date());
+            File logFile = new File(logDir, timestamp + "_game_" + iGame + ".log");
+            try {
+                logger = new FileGameLogger(logFile, g1);
+                g1.subscribeToEvents(logger);
+                g1.getGameLog().addObserver(logger);
+            } catch (IOException e) {
+                System.err.println("Failed to initialize logger: " + e.getMessage());
+            }
+        }
+
         // will run match in the same thread
         try {
             TimeLimitedCodeBlock.runWithTimeout(() -> {
                 mc.startGame(g1);
                 sw.stop();
-            }, 120, TimeUnit.SECONDS);
+            }, gameTimeout, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             System.out.println("Stopping slow match as draw");
         } catch (Exception | StackOverflowError e) {
@@ -187,6 +244,13 @@ public class SimulateMatch {
             }
             if (!g1.isGameOver()) {
                 g1.setGameOver(GameEndReason.Draw);
+            }
+            if (logger != null) {
+                try {
+                    logger.close();
+                } catch (IOException e) {
+                    System.err.println("Failed to close logger: " + e.getMessage());
+                }
             }
         }
 
@@ -219,7 +283,7 @@ public class SimulateMatch {
         int numPlayers = 0;
         if (params.containsKey("d")) {
             for (String deck : params.get("d")) {
-                Deck d = deckFromCommandLineParameter(deck, rules.getGameType());
+                Deck d = deckFromCommandLineParameter(deck, rules.getGameType(), params);
                 if (d == null) {
                     System.out.println(TextUtil.concatNoSpace("Could not load deck - ", deck, ", match cannot start"));
                     return;
@@ -336,16 +400,20 @@ public class SimulateMatch {
         }
         tourney.outputTournamentResults();
     }
-
     public static Match simulateOffthreadGame(List<Deck> decks, GameType format, int games) {
         return null;
     }
 
-    private static Deck deckFromCommandLineParameter(String deckname, GameType type) {
+    private static Deck deckFromCommandLineParameter(String deckname, GameType type, Map<String, List<String>> params) {
         int dotpos = deckname.lastIndexOf('.');
         if (dotpos > 0 && dotpos == deckname.length() - 4) {
-            String baseDir = type.equals(GameType.Commander) ?
-                    ForgeConstants.DECK_COMMANDER_DIR : ForgeConstants.DECK_CONSTRUCTED_DIR;
+            String baseDir;
+            if (params.containsKey("D")){
+                baseDir = params.get("D").get(0);
+            } else {
+                baseDir = type.equals(GameType.Commander) ?
+                        ForgeConstants.DECK_COMMANDER_DIR : ForgeConstants.DECK_CONSTRUCTED_DIR;
+            }
 
             File f = new File(baseDir + deckname);
             if (!f.exists()) {
